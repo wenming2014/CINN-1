@@ -22,6 +22,7 @@ using common::make_const;
 using common::make_one;
 using common::make_zero;
 
+void print(Expr e) {LOG(INFO)<<e;}
 //! Widen an expression to the given number of lanes.
 Expr Widen(Expr e, int lanes) {
   if (e.type().lanes() == lanes) return e;
@@ -314,7 +315,7 @@ class Vectorizer : public IRMutator<Expr *> {
   }
 
   template <typename T>
-  Expr BinaryOperatorVec(const T *op, Expr *expr) {
+  void BinaryOperatorVec(const T *op, Expr *expr) {
     auto *node = expr->As<T>();
     Expr a0    = node->a();
     Expr b0    = node->b();
@@ -323,7 +324,7 @@ class Vectorizer : public IRMutator<Expr *> {
     // if (a0.same_as(node->a()) && b0.same_as(node->b())) return *expr;
 
     int lanes = std::max(node->a().type().lanes(), node->b().type().lanes());
-    return T::Make(Widen(node->a(), lanes), Widen(node->b(), lanes));
+    *expr = T::Make(Widen(node->a(), lanes), Widen(node->b(), lanes));
   }
 };
 

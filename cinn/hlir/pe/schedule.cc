@@ -6,6 +6,9 @@
 namespace cinn {
 namespace hlir {
 namespace pe {
+bool IsPowerOfTwo(uint64_t value) {
+  return value && !(value & (value - 1));
+}
 
 void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
   int dims = stage->n_out_dims();
@@ -25,16 +28,47 @@ void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_sha
         fused = stage->Fuse(dims - 2, dims - 1);
         prod_size *= output_shape[dims - 2];
       } else {
-        return;
+        // try to reorder for better vectorize
+        int replace_index = -1;
+        int64_t to_replace_shape = -1;
+        // bool find_reorder_index = false;
+        std::vector<int> order;
+        // for (int i = 0; i < output_shape.size(); i++)
+        for (int i = 0; i < output_shape.size() - 1; i++)
+        {
+          if (replace_index == -1 && (output_shape[i] * type_bits) % target_native_vector_bits == 0) {
+            order.push_back(output_shape.size() - 1);
+            replace_index = i;
+            // find_reorder_index = true;
+            // to_replace_shape = 
+            // break;
+          } else {
+            order.push_back(i);
+          }
+          // if (IsPowerOfTwo(output_shape[i]) && output_shape[i] % target_native_vector_bits == 0) {
+
+          //   break;
+          // }
+        }
+        if (replace_index != -1) {
+          // std::vector<Iterator> axes = stage->axis;
+          // std::swap(output_shape[replace_index], output_shape.back());
+          order.push_back(replace_index);
+          stage->Reorder(order);
+          // fused = stage->axis(replace_index);
+          fused = stage->axis(dims-1);
+          prod_size = output_shape[replace_index];
+        }
       }
     }
     int split_factor = target_native_vector_bits / type_bits;
-    if (prod_size == split_factor) {
+    if (prod_size <= split_factor) {
+      split_factor = std::min(split_factor, prod_size);
       stage->Vectorize(fused, split_factor);
-      return;
+    } else {
+      auto [j_outer, j_inner] = stage->Split(fused, split_factor);
+      stage->Vectorize(j_inner, split_factor);
     }
-    auto [j_outer, j_inner] = stage->Split(fused, split_factor);
-    stage->Vectorize(j_inner, split_factor);
   }
 
   return;

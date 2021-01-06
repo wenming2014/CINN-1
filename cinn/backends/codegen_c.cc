@@ -704,6 +704,17 @@ void CodeGenC::PrintBuiltinCodes() {
 
 namespace detail {
 
+std::vector<Expr> StridedRampBase(Expr e) {
+// std::vector<Expr> StridedRampBase(Expr e, int stride) {
+  auto *ramp_n = e.As<ir::Ramp>();
+  if (ramp_n) {
+    auto *iv = ramp_n->stride.As<ir::IntImm>();
+    if (iv) return {ramp_n->base, ramp_n->stride};
+    // if (iv && iv->value == stride) return ramp_n->base;
+  }
+  return {};
+}
+
 Expr StridedRampBase(Expr e, int stride) {
   auto *ramp_n = e.As<ir::Ramp>();
   if (ramp_n) {
@@ -717,6 +728,8 @@ Expr StridedRampBase(Expr e, int stride) {
 
 }  // namespace backends
 
-DEFINE_string(cinn_x86_builtin_code_root, "", "");
+DEFINE_string(cinn_x86_builtin_code_root,
+              "/home/wangyue50/CINN-my3/CINN/cinn/backends",
+              "/home/wangyue50/CINN-my3/CINN/cinn/backends");
 
 }  // namespace cinn

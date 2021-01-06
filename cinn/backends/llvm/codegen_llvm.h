@@ -180,7 +180,8 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
 
   llvm::Value *CreateBufferPtr(Type t, llvm::Value *buffer, llvm::Value *index);
   llvm::Value *CreateBufferVecPtr(Type t, llvm::Value *buffer, llvm::Value *index);
-  llvm::Value *CreateVecSlice(llvm::Value *vec, int begin, int lanes);
+  // llvm::Value *CreateVecSlice(llvm::Value *vec, int begin, int lanes);
+  llvm::Value *CreateVecSlice(llvm::Value *vec, int begin, int lanes, int stride);
 
   llvm::Value *DenseVectorLoad(const ir::Load *load);
 
@@ -191,6 +192,9 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   void AddTbaaMetadata(llvm::Instruction *inst, std::string_view buffer, Expr index);
 
   void InitTarget(const Target &target);
+  
+  // return the power of two
+  int GetAlignment(int bytes);
 
   llvm::Module *m_;
   llvm::IRBuilder<> *b_;
@@ -208,6 +212,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   Target target_;
 };
 namespace detail {
+std::vector<Expr> StridedRampBase(Expr e);
 Expr StridedRampBase(Expr e, int stride);
 }  // namespace detail
 

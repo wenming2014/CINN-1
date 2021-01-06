@@ -141,6 +141,7 @@ void ExecutionEngine::Link(const ir::Module &module) {
   auto m          = llvm::parseAssemblyString(AsStringRef(backends::kRuntimeLlvmIr), error, *ctx);
   auto b          = std::make_unique<llvm::IRBuilder<>>(*ctx);
   auto ir_emitter = std::make_unique<CodeGenT>(m.get(), b.get());
+  LOG(INFO) << module;
   ir_emitter->Compile(module);
 
   CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid module found";
@@ -148,10 +149,13 @@ void ExecutionEngine::Link(const ir::Module &module) {
   auto machine =
       std::move(llvm::cantFail(llvm::cantFail(llvm::orc::JITTargetMachineBuilder::detectHost()).createTargetMachine()));
   LLVMModuleOptimizer optimize(machine.get(), 3, {}, true);
+  // for (auto &f : *m) {
+  //   LOG(INFO) << "function: " << DumpToString(f);
+  // }
   optimize(m.get());
   CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid optimized module detected";
   for (auto &f : *m) {
-    VLOG(3) << "function: " << DumpToString(f);
+    LOG(INFO) << "function: " << DumpToString(f);
   }
 
   CHECK(AddModule(std::move(m), std::move(ctx)));

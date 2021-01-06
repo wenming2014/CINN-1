@@ -61,7 +61,7 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
     auto out = codegen.Compile(build_module, CodeGenC::OutputKind::CImpl);
     LOG(INFO) << "[X86] C Code is:\n" << out;
   }
-
+  LOG(INFO)<<"code: "<<code;
   compiler_->Build(build_module, code);
 
   return std::unique_ptr<Program>(new Program(scope_, BuildInstructions()));

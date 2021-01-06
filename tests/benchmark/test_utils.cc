@@ -93,10 +93,10 @@ Module OpBenchmarkTester::CreateCinnModule(const std::vector<Tensor>& input_tens
   LOG(INFO) << func;
   Module::Builder builder("module_" + op_name_, target_);
   builder.AddFunction(func);
-  CodeGenC compiler(target_);
-  Outputs outputs;
-  outputs = outputs.c_header("./test_" + op_name_ + ".h").c_source("./test_" + op_name_ + ".cc");
-  compiler.Compile(builder.Build(), outputs);
+  // CodeGenC compiler(target_);
+  // Outputs outputs;
+  // outputs = outputs.c_header("./test_" + op_name_ + ".h").c_source("./test_" + op_name_ + ".cc");
+  // compiler.Compile(builder.Build(), outputs);
   return builder.Build();
 }
 

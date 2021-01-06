@@ -15,9 +15,11 @@
 include(ExternalProject)
 
 set(PYBIND_SOURCE_DIR ${THIRD_PARTY_PATH}/pybind)
-
+set(Python_DIR "/usr/include/python3.6m")
+include_directories("/usr/include/python3.6m")
 find_package(Python COMPONENTS Development)
 include_directories(${Python_INCLUDE_DIRS})
+include_directories("/usr/include/python3.6m")
 
 message(STATUS "pybind path: ${PYBIND_SOURCE_DIR}/src/extern_pybind/include")
 include_directories(${PYBIND_SOURCE_DIR}/src/extern_pybind/include)

@@ -128,7 +128,7 @@ TEST_MKL_MATH_FP32(tanh, true)
 TEST_MKL_MATH_FP32_BOOL(isfinite, true)
 TEST_MKL_MATH_FP32_BOOL(isinf, true)
 
-TEST(mkl_math, tanh_v_fp32) { TestCallElementwise("cinn_mkl_tanh_v_fp32", tanh, false); }
+// TEST(mkl_math, tanh_v_fp32) { TestCallElementwise("cinn_mkl_tanh_v_fp32", tanh, false); }
 
 TEST(cinn_cpu_mkl_gemm_fp32, test) {
   Expr M(30);

@@ -14,8 +14,10 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
-enable_gpu = sys.argv.pop()
-model_dir = sys.argv.pop()
+# enable_gpu = sys.argv.pop()
+# model_dir = sys.argv.pop()
+enable_gpu = "OFF"
+model_dir = "/home/wangyue50/CINN-my3/CINN/build/thirds/EfficientNet"
 
 
 class TestLoadEfficientNetModel(unittest.TestCase):

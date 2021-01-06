@@ -734,8 +734,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Load *op) {
     // load_inst->setMetadata("tbaa", md_builder_->createTBAAStructTagNode(meta, meta, 0));
     return load_inst;
   } else {  // vector load
-    Expr dense_strided_ramp = detail::StridedRampBase(op->index(), 1);
-    if (dense_strided_ramp.defined()) {
+    // Expr dense_strided_ramp = detail::StridedRampBase(op->index(), 1);
+    std::vector<Expr> dense_strided_ramp = detail::StridedRampBase(op->index());
+    if (!dense_strided_ramp.empty()) {
       CHECK(op->type().is_vector());
 
       llvm::Value *buffer = Visit(&op->tensor);
@@ -785,12 +786,16 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
     AddTbaaMetadata(store_inst, op->tensor.as_tensor()->name, op->index());
     return store_inst;
   } else {  // vector store
-    Expr dense_strided_ramp = detail::StridedRampBase(op->index(), 1);
+    LOG(INFO)<<"op->index() "<<op->index();
+    std::vector<Expr> dense_strided_ramp = detail::StridedRampBase(op->index());
+    // Expr dense_strided_ramp = detail::StridedRampBase(op->index(), 1);
     auto ramp_expr          = op->index();
     auto *ramp              = index.As<ir::Ramp>();
-    if (dense_strided_ramp.defined()) {  // stride 1
+    if (!dense_strided_ramp.empty()) {  // stride 1
       int total_lanes = op->type().lanes();
       int step        = naive_vec_alignment_ / op->type().ElementOf().bits();
+      CHECK_EQ(dense_strided_ramp.size(), 2U);
+      int stride = dense_strided_ramp[1].as_int32();
 
       auto *buffer = Visit(&op->tensor);
       auto *value  = Visit(&op->value);
@@ -803,9 +808,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
         auto *vtype =
             llvm::VectorType::get(ll_type_of(op->type().ElementOf()), llvm::ElementCount(lanes, false /*Scalable*/))
                 ->getPointerTo();
-        int alignment = lanes * op->type().ElementOf().bits() / 8;
+        int alignment = GetAlignment(lanes * op->type().ElementOf().bits() / 8);
         llvm::StoreInst *inst =
-            b_->CreateAlignedStore(CreateVecSlice(value, offset, lanes), b_->CreatePointerCast(ptr, vtype), alignment);
+            b_->CreateAlignedStore(CreateVecSlice(value, offset, lanes, stride), b_->CreatePointerCast(ptr, vtype), alignment);
         AddTbaaMetadata(inst, op->tensor.as_tensor()->name, base);
         return inst;
       }
@@ -1056,6 +1061,15 @@ llvm::FunctionType *CodeGenLLVM::GenFunctionTypeFromCinnFunction(const ir::_Lowe
   return llvm::FunctionType::get(func_ret_type, arg_types, false);
 }
 
+int CodeGenLLVM::GetAlignment(int bytes) {
+  // aligment should be the power of two
+  int r = 1;
+  while (bytes > r) {
+    r *= 2;
+  }
+  return r;
+}
+
 llvm::Value *CodeGenLLVM::DenseVectorLoad(const ir::Load *op) {
   auto index = op->index();
   auto *ramp = index.As<ir::Ramp>();
@@ -1072,7 +1086,8 @@ llvm::Value *CodeGenLLVM::DenseVectorLoad(const ir::Load *op) {
   for (int i = 0; i < load_lanes; i += native_lanes) {
     int slice_lanes   = std::min(native_lanes, load_lanes - i);
     auto slice_base   = common::AutoSimplify(ramp->base + i);
-    auto slide_stride = Expr(1);
+    // auto slide_stride = Expr(1);
+    int slide_stride = ramp->stride.as_int32();
     auto slide_index  = slice_base;
 
 #if LLVM_VERSION_MAJOR >= 11
@@ -1086,9 +1101,10 @@ llvm::Value *CodeGenLLVM::DenseVectorLoad(const ir::Load *op) {
     llvm::Value *elt_ptr = CreateBufferPtr(op->type().ElementOf(), buffer, Visit(&slice_base));
     llvm::Value *vec_ptr = b_->CreatePointerCast(elt_ptr, slice_type->getPointerTo(), "get_vec_ptr");
 
-    int alignment = slice_lanes * op->type().ElementOf().bits() / 8;
+    int alignment = GetAlignment(slice_lanes * op->type().ElementOf().bits() / 8);
 
-    llvm::Instruction *load_inst = b_->CreateAlignedLoad(vec_ptr, llvm::Align(alignment), "load_vec");
+    // llvm::Instruction *load_inst = b_->CreateAlignedLoad(vec_ptr, llvm::Align(alignment), "load_vec");
+    llvm::Instruction *load_inst = b_->CreateAlignedLoad(CreateVecSlice(vec_ptr, i, slice_lanes, slide_stride), llvm::Align(alignment), "load_vec");
     AddTbaaMetadata(load_inst, op->tensor.as_tensor()->name, op->index());
 
     slices.push_back(load_inst);
@@ -1122,12 +1138,23 @@ llvm::Value *CodeGenLLVM::CreateBufferPtr(Type t, llvm::Value *buffer, llvm::Val
   return b_->CreateInBoundsGEP(buffer, index, "buffer_ptr");
 }
 
-llvm::Value *CodeGenLLVM::CreateVecSlice(llvm::Value *vec, int begin, int lanes) {
+// llvm::Value *CodeGenLLVM::CreateVecSlice(llvm::Value *vec, int begin, int lanes) {
+//   int total_lanes = llvm::dyn_cast<llvm::VectorType>(vec->getType())->getNumElements();
+//   CHECK_LE(begin + lanes, total_lanes);
+//   if (lanes == total_lanes && begin == 0) return vec;  // full slice
+//   std::vector<llvm::Constant *> indices;
+//   for (int i = 0; i < lanes; ++i) {
+//     indices.push_back(ll_const_int32(begin + i));
+//   }
+//   llvm::Constant *undef = llvm::UndefValue::get(vec->getType());
+//   return b_->CreateShuffleVector(vec, undef, llvm::ConstantVector::get(indices));
+// }
+llvm::Value *CodeGenLLVM::CreateVecSlice(llvm::Value *vec, int begin, int lanes, int stride) {
   int total_lanes = llvm::dyn_cast<llvm::VectorType>(vec->getType())->getNumElements();
   CHECK_LE(begin + lanes, total_lanes);
   if (lanes == total_lanes && begin == 0) return vec;  // full slice
   std::vector<llvm::Constant *> indices;
-  for (int i = 0; i < lanes; ++i) {
+  for (int i = 0; i < lanes*stride; i+=stride) {
     indices.push_back(ll_const_int32(begin + i));
   }
   llvm::Constant *undef = llvm::UndefValue::get(vec->getType());

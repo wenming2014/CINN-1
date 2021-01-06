@@ -288,8 +288,10 @@ Expr Store::Make(Expr tensor, Expr value, const std::vector<Expr> &indices) {
 Expr Store::index() const {
   auto *tensor_n = tensor.As<ir::_Tensor_>();
   CHECK(tensor_n);
+  LOG(INFO)<<"tensor_n->shape"<<tensor_n->shape;
   Expr res = common::IndiceToAbsOffset(tensor_n->shape, indices);
   optim::Simplify(&res);
+  LOG(INFO)<<"Store::index()"<<res;
   return res;
 }
 

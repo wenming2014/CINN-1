@@ -106,6 +106,7 @@ class CodeGenC : public ir::IrPrinter {
 
 namespace detail {
 
+std::vector<Expr> StridedRampBase(Expr e);
 Expr StridedRampBase(Expr e, int stride);
 
 }  // namespace detail

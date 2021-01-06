@@ -70,7 +70,7 @@ std::string NVRTC_Compiler::CompilePTX(const std::string& code, bool include_hea
     for (auto& header : cinn_headers) {
       include_paths.push_back("--include-path=" + header);
     }
-
+    include_paths.push_back("--include-path=/home/wangyue50/CINN-my3/CINN/cinn/runtime/cuda");
     compile_options.insert(std::end(compile_options), include_paths.begin(), include_paths.end());
   }
 

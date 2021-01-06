@@ -14,11 +14,14 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
-assert len(sys.argv) == 1 + 2 + 1  # model and enable_gpu count
-enable_gpu = sys.argv.pop()
-multi_fc_model_dir = sys.argv.pop()
-naive_model_dir = sys.argv.pop()
+# assert len(sys.argv) == 1 + 2 + 1  # model and enable_gpu count
+# enable_gpu = sys.argv.pop()
+# multi_fc_model_dir = sys.argv.pop()
+# naive_model_dir = sys.argv.pop()
 
+enable_gpu = "ON"
+multi_fc_model_dir = "/home/wangyue50/CINN-my3/CINN/build/thirds/multi_fc_model"
+naive_model_dir = "/home/wangyue50/CINN-my3/CINN/build/thirds/naive_mul_model"
 
 class TestFrontend(unittest.TestCase):
     def setUp(self):
