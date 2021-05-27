@@ -51,7 +51,7 @@ void cinn_cpu_mkldnn_conv2d_nchw_fp32(int batch_size,
                                       int input_h,
                                       int input_w,
                                       int c_out,
-                                      int group,
+                                      int c_filter,
                                       int filter_h,
                                       int filter_w,
                                       int pad_h,
@@ -60,6 +60,7 @@ void cinn_cpu_mkldnn_conv2d_nchw_fp32(int batch_size,
                                       int stride_w,
                                       int dilation_h,
                                       int dilation_w,
+                                      int group,
                                       cinn_buffer_t* inputs,
                                       cinn_buffer_t* weights,
                                       cinn_buffer_t* out) {
@@ -67,9 +68,9 @@ void cinn_cpu_mkldnn_conv2d_nchw_fp32(int batch_size,
   mkldnn::stream cpu_stream(cpu_engine);
 
   memory::dims conv_src_tz     = {batch_size, c_in, input_h, input_w};
-  memory::dims conv_weights_tz = {c_out, c_in, filter_h, filter_w};
+  memory::dims conv_weights_tz = {c_out, c_filter, filter_h, filter_w};
   if (group > 1) {
-    conv_weights_tz = {group, c_out / group, c_in / group, filter_h, filter_w};
+    conv_weights_tz = {group, c_out / group, c_filter, filter_h, filter_w};
   }
   int out_h                   = (input_h - ((filter_h - 1) * dilation_h + 1) + 2 * pad_h) / stride_h + 1;
   int out_w                   = (input_w - ((filter_w - 1) * dilation_w + 1) + 2 * pad_w) / stride_w + 1;
@@ -128,7 +129,7 @@ CINN_REGISTER_HELPER(cinn_cpu_mkldnn) {
   auto host_target = common::DefaultHostTarget();
 
   FunctionProto::shape_inference_t inference_shape_conv2d_nchw = [](const std::vector<Expr>& args, int offset) {
-    CHECK_EQ(args.size(), 16UL) << "Wrong number of arguments passed in";
+    CHECK_EQ(args.size(), 17UL) << "Wrong number of arguments passed in";
     auto N         = common::AutoSimplify(args[0]);
     int input_h    = common::AutoSimplify(args[2]).as_int32();
     int input_w    = common::AutoSimplify(args[3]).as_int32();
@@ -159,7 +160,7 @@ CINN_REGISTER_HELPER(cinn_cpu_mkldnn) {
       .AddInputType<int>()              // input_h
       .AddInputType<int>()              // input_w
       .AddInputType<int>()              // c_out
-      .AddInputType<int>()              // group
+      .AddInputType<int>()              // c_filter
       .AddInputType<int>()              // filter_h
       .AddInputType<int>()              // filter_w
       .AddInputType<int>()              // pad_h
@@ -168,6 +169,7 @@ CINN_REGISTER_HELPER(cinn_cpu_mkldnn) {
       .AddInputType<int>()              // stride_w
       .AddInputType<int>()              // dilation_h
       .AddInputType<int>()              // dilation_w
+      .AddInputType<int>()              // group
       .AddInputType<cinn_buffer_t*>()   // inputs
       .AddInputType<cinn_buffer_t*>()   // weights
       .AddOutputType<cinn_buffer_t*>()  // out

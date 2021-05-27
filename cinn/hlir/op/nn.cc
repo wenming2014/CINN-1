@@ -304,12 +304,16 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
                                                        const Target &target) {
   std::vector<int> padding = {0, 0};
   std::vector<int> stride  = {1, 1};
+  std::vector<int> dilation  = {1, 1};
   std::string data_format  = "NCHW";
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
     padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
   if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
     stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+  }
+  if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
+    dilation = std::get<std::vector<int>>(attrs.attr_store.at("dilation"));
   }
   if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
     data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
@@ -325,9 +329,26 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
     CHECK(B.as_tensor());
     CHECK_EQ(padding.size(), 2) << "The size of padding in depthwise_conv op is not 2! Please check.\n";
     CHECK_EQ(stride.size(), 2) << "The size of stride in depthwise_conv op is not 2! Please check.\n";
+    CHECK_EQ(dilation.size(), 2) << "The size of dilation in depthwise_conv op is not 2! Please check.\n";
     CHECK(data_format == "NCHW" || data_format == "NHWC") << "only support NCHW/NHWC data_format.\n";
     std::vector<ir::Tensor> out;
+    bool use_mkldnn = false;
+    #ifdef CINN_WITH_MKLDNN
+    use_mkldnn = true;
+#endif
+    use_mkldnn = use_mkldnn && target.arch == Target::Arch::X86;
     if (data_format == "NCHW") {
+      if (use_mkldnn) {
+        out = pe::Depthwise_Conv2d_NCHW_MKLDNN(A.as_tensor_ref(),
+                                                B.as_tensor_ref(),
+                                                padding[0],
+                                                padding[1],
+                                                stride[0],
+                                                stride[1],
+                                                dilation[0],
+                                                dilation[1],
+                                                UniqName("T_depthwise_conv2d_nchw_mkldnn_out"));
+      }
       out = pe::Depthwise_Conv2d_NCHW(A.as_tensor_ref(),
                                       B.as_tensor_ref(),
                                       padding[0],
@@ -366,17 +387,22 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
     poly::StageMap stages = arg_pack[arg_pack.size() - 1];
     Expr Out              = arg_pack[arg_pack.size() - 2];
     CHECK(Out.as_tensor());
-    if (arg_pack.size() == 3UL) {
-      Expr input_pad = arg_pack[0];
-      CHECK(input_pad.as_tensor());
-      stages[input_pad.as_tensor_ref()]->ComputeInline();
-    }
+    
     if (target.arch == Target::Arch::NVGPU) {
+      if (arg_pack.size() == 3UL) {
+        Expr input_pad = arg_pack[0];
+        CHECK(input_pad.as_tensor());
+        stages[input_pad.as_tensor_ref()]->ComputeInline();
+      }
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "blockIdx.y");
       stages[Out.as_tensor_ref()]->Bind(2, "blockIdx.z");
       stages[Out.as_tensor_ref()]->Bind(3, "threadIdx.x");
-    }
+    } 
+    // else if (target.arch == Target::Arch::X86) {
+    //   *ret = arg_pack;
+    //   return;
+    // }
 
     *ret = CINNValuePack{{CINNValue(Out), CINNValue(stages)}};
   });

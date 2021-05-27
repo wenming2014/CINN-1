@@ -17,6 +17,9 @@ import time
 
 enable_gpu = sys.argv.pop()
 model_dir = sys.argv.pop()
+
+# enable_gpu = "OFF"
+# model_dir = "/home/wangyue50/CINN-my4/CINN4/build/thirds/ResNet18"
 print("enable_gpu is : ", enable_gpu)
 print("model_dir is : ", model_dir)
 
@@ -57,20 +60,22 @@ class TestLoadResnetModel(unittest.TestCase):
         a_t.from_numpy(x_data, self.target)
         out = self.executor.get_tensor(self.target_tensor)
         out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
-        for i in range(10):
-            self.executor.run()
+        end2 = time.time()
+        self.executor.run()
+        end3 = time.time()
+        print("Preheat executor.run() time is: %.3f sec" % (end3 - end2))
 
-        repeat = 1000
         end4 = time.perf_counter()
+        repeat = 1
         for i in range(repeat):
             self.executor.run()
         end5 = time.perf_counter()
-        print("Repeat %d times, average Executor.run() time is: %.3f ms" %
-              (repeat, (end5 - end4) * 1000 / repeat))
+        print("Repeat %d times, average Executor.run() time is: %.3f s" %
+              (repeat, end5 - end4))
 
-        a_t.from_numpy(x_data, self.target)
-        out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
-        self.executor.run()
+        # a_t.from_numpy(x_data, self.target)
+        # out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
+        # self.executor.run()
 
         out = out.numpy(self.target)
         target_result = self.get_paddle_inference_result(

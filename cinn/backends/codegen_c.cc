@@ -770,6 +770,6 @@ Expr StridedRampBase(Expr e, int stride) {
 
 }  // namespace backends
 
-DEFINE_string(cinn_x86_builtin_code_root, "", "");
+DEFINE_string(cinn_x86_builtin_code_root, "/home/wangyue50/CINN-my6/CINN6/cinn/backends", "/home/wangyue50/CINN-my6/CINN6/cinn/backends");
 
 }  // namespace cinn

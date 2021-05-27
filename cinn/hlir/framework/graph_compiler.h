@@ -37,19 +37,71 @@ class Program {
    * Execute the program -- that is running all the instructions inside it.
    */
   void Execute() {
-    for (auto& ins : instrs_) {
-      ins->Run();
+    int repeat_ = 10;
+    cinn::utils::Timer timer1;
+    timer1.Start();
+    for (int i = 0; i < repeat_; i++) {
+      for (auto& ins : instrs_) {
+        // ins->RunTest(repeat_);
+        ins->Run();
+      }
     }
+    double test_op_time = timer1.Stop() / repeat_;
+    LOG(INFO) << "preheat: Repeat times: [" << repeat_ << "], average op time: [" << test_op_time << "] ms";
+    // timer1.Start();
+    double time_all = 0;
+    std::vector<double> ins_times;
+    for (size_t i = 0; i < repeat_; i++) {
+      int count = 0;
+      for (auto& ins : instrs_) {
+        if (i == 0) {
+          ins_times.push_back(0);
+          auto out_args = ins->GetOutArgs();
+          LOG(INFO) << "Op out args: " << out_args.front();
+        }
+        // auto in_args  = ins->GetInArgs();
+
+        // for (auto& in : in_args) {
+        //   LOG(INFO) << in << " ";
+        // }
+        // LOG(INFO) << "Op out args: ";
+        // for (auto& out : out_args) {
+        //   LOG(INFO) << out << " ";
+        // }
+        // LOG(INFO)<< (*ins)->op_type;
+
+        timer1.Start();
+        ins->Run();
+        test_op_time = timer1.Stop();
+        ins_times[count] += test_op_time;
+        count++;
+        // LOG(INFO) << "average op time: [" << test_op_time << "] ms";
+        time_all += test_op_time;
+
 #ifdef CINN_WITH_CUDA
-    if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
-      CUDA_CALL(cudaDeviceSynchronize());
-    }
+        if (ins->target_.arch == Target::Arch::NVGPU) {
+          CUDA_CALL(cudaDeviceSynchronize());
+        }
 #endif
+      }
+      // test_op_time = ins_times[i] / repeat_;
+      // LOG(INFO) << "average op time: [" << test_op_time << "] ms";
+    }
+    LOG(INFO) << "instr counts: " << ins_times.size();
+    for (size_t i = 0; i < ins_times.size(); i++) {
+      test_op_time = ins_times[i] / repeat_;
+      LOG(INFO) << "op index: " << i << "" << instrs_[i]->GetOutArgs().front() << ", average op time: [" << test_op_time
+                << "] ms";
+    }
+
+    // test_op_time = timer1.Stop() / repeat_;
+    test_op_time = time_all / repeat_;
+    LOG(INFO) << "execute: Repeat times: [" << repeat_ << "], average op time: [" << test_op_time << "] ms";
   }
 
   void ExecuteTest(int repeat_) {
     cinn::utils::Timer timer1;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 1; i++) {
       for (auto& ins : instrs_) {
         ins->Run();
       }

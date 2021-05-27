@@ -107,6 +107,8 @@ class SingleOpTester(unittest.TestCase):
         out_result = out[len(out) - 1].numpy()
         if out_index != None:
             out_result = out[out_index].numpy()
+        print("out_result",out_result)
+        print("correct_result",correct_result)
 
         self.assertTrue(np.allclose(out_result, correct_result, atol=1e-4))
 

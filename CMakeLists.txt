@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 3.0)
-project(CINN)
+project(CINN6)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY TRUE)
+add_definitions(-std=c++17)
+set(CMAKE_CXX_FLAGS "-O0 -ggdb")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
+
 
 set(THIRD_PARTY_PATH "${CMAKE_BINARY_DIR}/thirds")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

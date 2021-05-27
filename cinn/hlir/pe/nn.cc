@@ -129,7 +129,7 @@ std::vector<ir::Tensor> Conv2d_NCHW_MKLDNN(const ir::Tensor &input,
                                     Expr(input->shape[2]),    // input_h
                                     Expr(input->shape[3]),    // input_w
                                     Expr(weights->shape[0]),  // c_out
-                                    Expr(group),              // group
+                                    Expr(weights->shape[1]),  // c_filter
                                     Expr(weights->shape[2]),  // filter_h
                                     Expr(weights->shape[3]),  // filter_w
                                     Expr(pad_h),              // pad_h
@@ -138,11 +138,60 @@ std::vector<ir::Tensor> Conv2d_NCHW_MKLDNN(const ir::Tensor &input,
                                     Expr(stride_w),           // stride_w
                                     Expr(dilation_h),         // dilation_h
                                     Expr(dilation_w),         // dilation_w
+                                    Expr(group),              // group
                                     input,                    // input
                                     weights                   // weights
                                 });
       },
       UniqName("conv2d_nchw_mkldnn_out"));
+  auto out = call->TupleGet(0);
+  out->WithBuffer(input->type());
+  return {out, call};
+}
+
+std::vector<ir::Tensor> Depthwise_Conv2d_NCHW_MKLDNN(const ir::Tensor &input,
+                                                      const ir::Tensor &weights,
+                                                      int pad_h,
+                                                      int pad_w,
+                                                      int stride_h,
+                                                      int stride_w,
+                                                      int dilation_h,
+                                                      int dilation_w,
+                                                      const std::string &output_name) {
+  CHECK_EQ(input->shape.size(), 4U) << "Input's dimension of Depthwise_Conv2d_NCHW op is not 4! Please check.";
+  CHECK_EQ(weights->shape.size(), 4U) << "Weight's dimension of Depthwise_Conv2d_NCHW op is not 4! Please check.";
+  std::vector<Expr> output_shape;
+  std::vector<Expr> new_weights_shape;
+  std::vector<Expr> input_pad_shape;
+  int group = input->shape[1].as_int32();
+  // int group = input->shape[1].as_int32() / weights->shape[1].as_int32();
+  // CHECK_EQ(input->shape[1].as_int32(), weights->shape[1].as_int32() * group)
+      // << "input channel should be divisible by filter channel";
+  auto call = Compute(
+      {Expr(1)},
+      [=]() -> Expr {
+        return lang::CallExtern("cinn_cpu_mkldnn_conv2d_nchw_fp32",
+                                {
+                                    Expr(input->shape[0]),    // batch_size
+                                    Expr(input->shape[1]),    // c_in
+                                    Expr(input->shape[2]),    // input_h
+                                    Expr(input->shape[3]),    // input_w
+                                    Expr(weights->shape[0]),  // c_out
+                                    Expr(weights->shape[1]),  // c_filter
+                                    Expr(weights->shape[2]),  // filter_h
+                                    Expr(weights->shape[3]),  // filter_w
+                                    Expr(pad_h),              // pad_h
+                                    Expr(pad_w),              // pad_w
+                                    Expr(stride_h),           // stride_h
+                                    Expr(stride_w),           // stride_w
+                                    Expr(dilation_h),         // dilation_h
+                                    Expr(dilation_w),         // dilation_w
+                                    Expr(group),              // group
+                                    input,                    // input
+                                    weights                   // weights
+                                });
+      },
+      UniqName("depthwise_conv2d_nchw_mkldnn_out"));
   auto out = call->TupleGet(0);
   out->WithBuffer(input->type());
   return {out, call};
